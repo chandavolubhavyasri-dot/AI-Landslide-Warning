@@ -3,60 +3,97 @@ import pandas as pd
 import joblib
 from gtts import gTTS
 import io
+import requests
+from datetime import datetime
 
-# -----------------------------
-# Page setup
-# -----------------------------
+# =========================================================
+# PAGE CONFIGURATION
+# =========================================================
+
 st.set_page_config(
-    page_title="AI Landslide Warning System",
+    page_title="AI Landslide Warning",
     page_icon="⚠️",
     layout="centered"
 )
 
-st.title("⚠️ AI Landslide Warning System")
-st.write("AI-based landslide risk prediction with multilingual voice warning.")
+# =========================================================
+# SIMPLE USER INTERFACE
+# =========================================================
 
-# -----------------------------
-# Load trained ML model nh
-# -----------------------------
-model = joblib.load("landslide_model.joblib")
+st.title("⚠️ AI LANDSLIDE WARNING")
 
-# -----------------------------
-# User inputs
-# -----------------------------
-st.subheader("📊 Enter Environmental Data")
-
-rainfall = st.number_input(
-    "Rainfall (mm)",
-    min_value=0.0,
-    value=180.0
+st.write(
+    "Select your location and language. "
+    "The system will automatically check the risk "
+    "and provide a voice warning."
 )
 
-soil_moisture = st.number_input(
-    "Soil Moisture (%)",
-    min_value=0.0,
-    max_value=100.0,
-    value=70.0
+# =========================================================
+# LOAD AI MODEL
+# =========================================================
+
+try:
+    model = joblib.load("landslide_model.joblib")
+
+except Exception:
+    st.error(
+        "AI model could not be loaded."
+    )
+    st.stop()
+
+# =========================================================
+# LOCATION SELECTION
+# =========================================================
+
+st.subheader("📍 Select Your Location")
+
+location_options = {
+    "Darjeeling, West Bengal": (27.0410, 88.2663),
+    "Gangtok, Sikkim": (27.3389, 88.6065),
+    "Shillong, Meghalaya": (25.5788, 91.8933),
+    "Aizawl, Mizoram": (23.7271, 92.7176),
+    "Kohima, Nagaland": (25.6751, 94.1086),
+    "Itanagar, Arunachal Pradesh": (27.0844, 93.6053),
+    "Imphal, Manipur": (24.8170, 93.9368),
+    "Dehradun, Uttarakhand": (30.3165, 78.0322),
+    "Kurseong, West Bengal": (26.8820, 88.2770),
+    "Kalimpong, West Bengal": (27.0667, 88.4667),
+    "Custom Location": None
+}
+
+selected_location = st.selectbox(
+    "Choose your location:",
+    list(location_options.keys())
 )
 
-vibration = st.number_input(
-    "Vibration",
-    min_value=0.0,
-    value=5.0
-)
+if selected_location == "Custom Location":
 
-slope = st.number_input(
-    "Slope (degrees)",
-    min_value=0.0,
-    max_value=90.0,
-    value=10.0
-)
+    latitude = st.number_input(
+        "Latitude",
+        value=27.0410,
+        format="%.4f"
+    )
 
-# -----------------------------
-# Language selection
-# -----------------------------
+    longitude = st.number_input(
+        "Longitude",
+        value=88.2663,
+        format="%.4f"
+    )
+
+else:
+
+    latitude, longitude = location_options[
+        selected_location
+    ]
+
+# =========================================================
+# LANGUAGE SELECTION
+# =========================================================
+
+st.subheader("🗣️ Select Warning Language")
+
 language = st.selectbox(
-    "🔊 Warning Voice Language",
+    "Choose the language for the voice warning:",
     [
         "English",
         "Hindi",
@@ -64,117 +101,531 @@ language = st.selectbox(
         "Kannada",
         "Malayalam",
         "Marathi",
-        "Bengali"
+        "Bengali",
+        "Assamese",
+        "Manipuri",
+        "Nepali",
+        "Kashmiri",
+        "Tamil"
     ]
 )
 
+# =========================================================
+# LANGUAGE CODES
+# =========================================================
+
 language_codes = {
+
     "English": "en",
     "Hindi": "hi",
     "Telugu": "te",
     "Kannada": "kn",
     "Malayalam": "ml",
     "Marathi": "mr",
-    "Bengali": "bn"
+    "Bengali": "bn",
+    "Assamese": "as",
+    "Nepali": "ne",
+    "Tamil": "ta"
 }
 
-# -----------------------------
-# Prediction
-# -----------------------------
-if st.button("🔍 Predict Landslide Risk"):
+voice_supported = {
 
-    input_data = pd.DataFrame({
-        "rainfall": [rainfall],
-        "soil_moisture": [soil_moisture],
-        "vibration": [vibration],
-        "slope": [slope]
-    })
+    "English",
+    "Hindi",
+    "Telugu",
+    "Kannada",
+    "Malayalam",
+    "Marathi",
+    "Bengali",
+    "Assamese",
+    "Nepali",
+    "Tamil"
+}
 
-    prediction = model.predict(input_data)[0]
+# =========================================================
+# HIGH-RISK WARNINGS
+# =========================================================
 
-    # Get probability if available
-    if hasattr(model, "predict_proba"):
-        probability = model.predict_proba(input_data)[0][1]
-    else:
-        probability = float(prediction)
+HIGH_WARNING = {
 
-    st.subheader("🚨 Risk Assessment")
+    "English":
+        "Emergency warning. High landslide risk detected. "
+        "Please move to a safe location immediately.",
 
-    # -----------------------------
-    # Risk levels
-    # -----------------------------
-    if prediction == 1:
-        risk_text = "HIGH LANDSLIDE RISK"
-        warning_text = {
-            "English": "Emergency warning. High landslide risk detected. Please move to a safe location and follow local authorities.",
-            "Hindi": "आपातकालीन चेतावनी। भूस्खलन का उच्च जोखिम पाया गया है। कृपया सुरक्षित स्थान पर जाएं और स्थानीय अधिकारियों के निर्देशों का पालन करें।",
-            "Telugu": "అత్యవసర హెచ్చరిక. కొండచరియలు విరిగిపడే ప్రమాదం ఎక్కువగా ఉంది. దయచేసి సురక్షితమైన ప్రదేశానికి వెళ్లి స్థానిక అధికారుల సూచనలను పాటించండి.",
-            "Kannada": "ತುರ್ತು ಎಚ್ಚರಿಕೆ. ಭೂಕುಸಿತದ ಅಪಾಯ ಹೆಚ್ಚಾಗಿದೆ. ದಯವಿಟ್ಟು ಸುರಕ್ಷಿತ ಸ್ಥಳಕ್ಕೆ ತೆರಳಿ ಸ್ಥಳೀಯ ಅಧಿಕಾರಿಗಳ ಸೂಚನೆಗಳನ್ನು ಅನುಸರಿಸಿ.",
-            "Malayalam": "അടിയന്തര മുന്നറിയിപ്പ്. മണ്ണിടിച്ചിലിന്റെ ഉയർന്ന അപകടസാധ്യത കണ്ടെത്തിയിട്ടുണ്ട്. ദയവായി സുരക്ഷിതമായ സ്ഥലത്തേക്ക് മാറി പ്രാദേശിക അധികാരികളുടെ നിർദ്ദേശങ്ങൾ പാലിക്കുക.",
-            "Marathi": "आपत्कालीन इशारा. भूस्खलनाचा धोका जास्त आहे. कृपया सुरक्षित ठिकाणी जा आणि स्थानिक अधिकाऱ्यांच्या सूचनांचे पालन करा.",
-            "Bengali": "জরুরি সতর্কতা। ভূমিধসের উচ্চ ঝুঁকি শনাক্ত হয়েছে। অনুগ্রহ করে নিরাপদ স্থানে যান এবং স্থানীয় কর্তৃপক্ষের নির্দেশ অনুসরণ করুন।"
-        }
+    "Hindi":
+        "आपातकालीन चेतावनी। भूस्खलन का उच्च जोखिम पाया गया है। "
+        "कृपया तुरंत सुरक्षित स्थान पर जाएं।",
 
-        st.error("🔴 " + risk_text)
+    "Telugu":
+        "అత్యవసర హెచ్చరిక. కొండచరియలు విరిగిపడే ప్రమాదం ఎక్కువగా ఉంది. "
+        "దయచేసి వెంటనే సురక్షితమైన ప్రదేశానికి వెళ్లండి.",
 
-    else:
-        risk_text = "LOW LANDSLIDE RISK"
-        warning_text = {
-            "English": "Landslide risk is currently low. Continue monitoring environmental conditions.",
-            "Hindi": "वर्तमान में भूस्खलन का जोखिम कम है। पर्यावरणीय परिस्थितियों की निगरानी जारी रखें।",
-            "Telugu": "ప్రస్తుతం కొండచరియలు విరిగిపడే ప్రమాదం తక్కువగా ఉంది. పర్యావరణ పరిస్థితులను పర్యవేక్షిస్తూ ఉండండి.",
-            "Kannada": "ಪ್ರಸ್ತುತ ಭೂಕುಸಿತದ ಅಪಾಯ ಕಡಿಮೆಯಾಗಿದೆ. ಪರಿಸರ ಪರಿಸ್ಥಿತಿಗಳನ್ನು ಮೇಲ್ವಿಚಾರಣೆ ಮಾಡುತ್ತಿರಿ.",
-            "Malayalam": "നിലവിൽ മണ്ണിടിച്ചിലിന്റെ അപകടസാധ്യത കുറവാണ്. പരിസ്ഥിതി സാഹചര്യങ്ങൾ നിരീക്ഷിക്കുന്നത് തുടരുക.",
-            "Marathi": "सध्या भूस्खलनाचा धोका कमी आहे. पर्यावरणीय परिस्थितीचे निरीक्षण सुरू ठेवा.",
-            "Bengali": "বর্তমানে ভূমিধসের ঝুঁকি কম। পরিবেশগত পরিস্থিতি পর্যবেক্ষণ করতে থাকুন।"
-        }
+    "Kannada":
+        "ತುರ್ತು ಎಚ್ಚರಿಕೆ. ಭೂಕುಸಿತದ ಅಪಾಯ ಹೆಚ್ಚಾಗಿದೆ. "
+        "ದಯವಿಟ್ಟು ತಕ್ಷಣ ಸುರಕ್ಷಿತ ಸ್ಥಳಕ್ಕೆ ತೆರಳಿ.",
 
-        st.success("🟢 " + risk_text)
+    "Malayalam":
+        "അടിയന്തര മുന്നറിയിപ്പ്. മണ്ണിടിച്ചിലിന്റെ ഉയർന്ന അപകടസാധ്യത കണ്ടെത്തിയിട്ടുണ്ട്. "
+        "ദയവായി ഉടൻ സുരക്ഷിതമായ സ്ഥലത്തേക്ക് മാറുക.",
 
-    st.write(
-        f"**Estimated risk probability:** {probability * 100:.1f}%"
-    )
+    "Marathi":
+        "आपत्कालीन इशारा. भूस्खलनाचा धोका जास्त आहे. "
+        "कृपया त्वरित सुरक्षित ठिकाणी जा.",
 
-    # -----------------------------
-    # Generate voice warning
-    # -----------------------------
-    st.subheader("🔊 AI Voice Warning")
+    "Bengali":
+        "জরুরি সতর্কতা। ভূমিধসের উচ্চ ঝুঁকি শনাক্ত হয়েছে। "
+        "অনুগ্রহ করে অবিলম্বে নিরাপদ স্থানে যান।",
 
-    selected_text = warning_text[language]
+    "Assamese":
+        "জৰুৰীকালীন সতৰ্কবাণী। ভূমিস্খলনৰ উচ্চ আশংকা ধৰা পৰিছে। "
+        "অনুগ্ৰহ কৰি তৎক্ষণাত সুৰক্ষিত স্থানলৈ যাওক।",
 
-    st.info(selected_text)
+    "Manipuri":
+        "ꯅꯤꯡꯊꯤꯕ ꯁꯇꯔꯀꯕꯥ। "
+        "ꯃꯩꯅꯥ ꯂꯩꯕ ꯐꯥꯏꯗꯣꯛ ꯊꯣꯛꯄꯒꯤ ꯑꯁꯥꯡ ꯌꯥꯝ ꯂꯩ। "
+        "ꯁꯨꯔꯛꯁꯤꯇ ꯃꯐꯝꯗꯥ ꯆꯠꯂꯨ।",
+
+    "Nepali":
+        "आपतकालीन चेतावनी। पहिरोको उच्च जोखिम पत्ता लागेको छ। "
+        "कृपया तुरुन्त सुरक्षित स्थानमा जानुहोस्।",
+
+    "Kashmiri":
+        "ایمرجنسی انتباہ۔ زمین کھسکنے کا خطرہ زیادہ ہے۔ "
+        "مہربانی کر کے فوراً محفوظ مقام پر منتقل ہوو۔",
+
+    "Tamil":
+        "அவசர எச்சரிக்கை. நிலச்சரிவு ஏற்படும் அபாயம் அதிகமாக உள்ளது. "
+        "தயவுசெய்து உடனடியாக பாதுகாப்பான இடத்திற்கு செல்லவும்."
+}
+
+# =========================================================
+# LOW-RISK WARNINGS
+# =========================================================
+
+LOW_WARNING = {
+
+    "English":
+        "Landslide risk is currently low. "
+        "Please continue to stay alert.",
+
+    "Hindi":
+        "वर्तमान में भूस्खलन का जोखिम कम है। "
+        "कृपया सतर्क रहें।",
+
+    "Telugu":
+        "ప్రస్తుతం కొండచరియలు విరిగిపడే ప్రమాదం తక్కువగా ఉంది. "
+        "దయచేసి అప్రమత్తంగా ఉండండి.",
+
+    "Kannada":
+        "ಪ್ರಸ್ತುತ ಭೂಕುಸಿತದ ಅಪಾಯ ಕಡಿಮೆಯಾಗಿದೆ. "
+        "ದಯವಿಟ್ಟು ಎಚ್ಚರಿಕೆಯಿಂದಿರಿ.",
+
+    "Malayalam":
+        "നിലവിൽ മണ്ണിടിച്ചിലിന്റെ അപകടസാധ്യത കുറവാണ്. "
+        "ദയവായി ജാഗ്രത പാലിക്കുക.",
+
+    "Marathi":
+        "सध्या भूस्खलनाचा धोका कमी आहे. "
+        "कृपया सतर्क रहा.",
+
+    "Bengali":
+        "বর্তমানে ভূমিধসের ঝুঁকি কম। "
+        "দয়া করে সতর্ক থাকুন.",
+
+    "Assamese":
+        "বৰ্তমান ভূমিস্খলনৰ আশংকা কম। "
+        "অনুগ্ৰহ কৰি সতৰ্ক হৈ থাকক।",
+
+    "Manipuri":
+        "ꯃꯐꯝ ꯑꯁꯤꯗꯥ ꯐꯥꯏꯗꯣꯛ ꯊꯣꯛꯄꯒꯤ ꯑꯁꯥꯡ ꯅꯥꯈꯤ। "
+        "ꯁꯇꯔꯀ ꯑꯣꯏꯅ ꯂꯩꯎ।",
+
+    "Nepali":
+        "हाल पहिरोको जोखिम कम छ। "
+        "कृपया सतर्क रहनुहोस्।",
+
+    "Kashmiri":
+        "فی الحال زمین کھسکنے کا خطرہ کم چھ۔ "
+        "مہربانی کر کے ہوشیار رہو۔",
+
+    "Tamil":
+        "தற்போது நிலச்சரிவு ஏற்படும் அபாயம் குறைவாக உள்ளது. "
+        "தயவுசெய்து விழிப்புடன் இருங்கள்."
+}
+
+# =========================================================
+# GET REAL WEATHER DATA
+# =========================================================
+
+def get_weather_data(latitude, longitude):
+
+    url = "https://api.open-meteo.com/v1/forecast"
+
+    params = {
+
+        "latitude": latitude,
+
+        "longitude": longitude,
+
+        "current":
+            "rain,precipitation,soil_moisture_0_to_1cm",
+
+        "timezone": "auto"
+    }
 
     try:
+
+        response = requests.get(
+            url,
+            params=params,
+            timeout=10
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        current = data["current"]
+
+        rainfall = float(
+            current.get("rain", 0)
+        )
+
+        soil_moisture = float(
+            current.get(
+                "soil_moisture_0_to_1cm",
+                0
+            )
+        )
+
+        return rainfall, soil_moisture
+
+    except Exception:
+
+        return None, None
+
+
+# =========================================================
+# GENERATE VOICE
+# =========================================================
+
+def generate_voice(text, selected_language):
+
+    if selected_language not in voice_supported:
+
+        return None
+
+    try:
+
         audio_buffer = io.BytesIO()
 
         tts = gTTS(
-            text=selected_text,
-            lang=language_codes[language],
+            text=text,
+            lang=language_codes[
+                selected_language
+            ],
             slow=False
         )
 
-        tts.write_to_fp(audio_buffer)
+        tts.write_to_fp(
+            audio_buffer
+        )
+
         audio_buffer.seek(0)
 
-        st.audio(audio_buffer, format="audio/mp3")
+        return audio_buffer
 
-        st.success(
-            "🔊 Voice warning generated. Press the play button above to hear it."
-        )
+    except Exception:
 
-    except Exception as e:
-        st.warning(
-            "Voice generation could not be completed. "
-            "Please check the internet connection."
-        )
+        return None
 
-# -----------------------------
-# Prototype note
-# -----------------------------
+
+# =========================================================
+# START MONITORING
+# =========================================================
+
 st.divider()
 
-st.info(
-    "Prototype note: This system uses demonstration training data. "
-    "For real-world emergency deployment, use validated historical sensor "
-    "and landslide data and obtain appropriate expert validation."
+st.subheader("🚨 Check Landslide Risk")
+
+check_risk = st.button(
+    "🔍 CHECK MY AREA",
+    use_container_width=True
 )
+
+# =========================================================
+# RISK ANALYSIS
+# =========================================================
+
+if check_risk:
+
+    with st.spinner(
+        "Checking environmental conditions..."
+    ):
+
+        rainfall, soil_moisture_raw = get_weather_data(
+            latitude,
+            longitude
+        )
+
+    if rainfall is None:
+
+        st.error(
+            "❌ Unable to get live environmental data. "
+            "Please check your internet connection."
+        )
+
+        st.stop()
+
+    # Convert soil moisture fraction to percentage
+
+    soil_moisture = (
+        soil_moisture_raw * 100
+    )
+
+    # -----------------------------------------------------
+    # TEMPORARY SENSOR VALUES
+    # -----------------------------------------------------
+
+    # These remain temporary until actual sensors
+    # are connected.
+
+    vibration = 1.0
+
+    slope = 20.0
+
+    # -----------------------------------------------------
+    # PREPARE AI DATA
+    # -----------------------------------------------------
+
+    input_data = pd.DataFrame({
+
+        "rainfall": [
+            rainfall
+        ],
+
+        "soil_moisture": [
+            soil_moisture
+        ],
+
+        "vibration": [
+            vibration
+        ],
+
+        "slope": [
+            slope
+        ]
+    })
+
+    # -----------------------------------------------------
+    # AI PREDICTION
+    # -----------------------------------------------------
+
+    try:
+
+        prediction = model.predict(
+            input_data
+        )[0]
+
+        if hasattr(
+            model,
+            "predict_proba"
+        ):
+
+            probability = model.predict_proba(
+                input_data
+            )[0][1]
+
+        else:
+
+            probability = float(
+                prediction
+            )
+
+    except Exception:
+
+        st.error(
+            "❌ AI model could not process "
+            "the environmental data."
+        )
+
+        st.stop()
+
+    # =====================================================
+    # USER-FRIENDLY RESULT
+    # =====================================================
+
+    st.divider()
+
+    st.subheader(
+        "📍 YOUR AREA"
+    )
+
+    st.write(
+        f"**{selected_location}**"
+    )
+
+    # =====================================================
+    # HIGH RISK
+    # =====================================================
+
+    if prediction == 1:
+
+        st.error(
+            "🔴 DANGER"
+        )
+
+        st.markdown(
+            """
+            ## 🚨 LANDSLIDE WARNING
+
+            **Please move to a safe location immediately.**
+            """
+        )
+
+        warning_text = HIGH_WARNING[
+            language
+        ]
+
+        st.warning(
+            warning_text
+        )
+
+    # =====================================================
+    # LOW RISK
+    # =====================================================
+
+    else:
+
+        st.success(
+            "🟢 SAFE"
+        )
+
+        st.markdown(
+            """
+            ## 🟢 NO IMMEDIATE LANDSLIDE WARNING
+
+            **Please continue to stay alert.**
+            """
+        )
+
+        warning_text = LOW_WARNING[
+            language
+        ]
+
+        st.info(
+            warning_text
+        )
+
+    # =====================================================
+    # VOICE WARNING
+    # =====================================================
+
+    st.divider()
+
+    st.subheader(
+        "🔊 VOICE WARNING"
+    )
+
+    audio = generate_voice(
+        warning_text,
+        language
+    )
+
+    if audio is not None:
+
+        st.audio(
+            audio,
+            format="audio/mp3",
+            autoplay=True
+        )
+
+        st.success(
+            "🔊 Voice warning is ready."
+        )
+
+        st.button(
+            "🔊 PLAY WARNING AGAIN",
+            use_container_width=True
+        )
+
+    else:
+
+        st.info(
+            "Voice warning is not available "
+            "for this language yet."
+        )
+
+    # =====================================================
+    # HIDDEN TECHNICAL INFORMATION
+    # =====================================================
+
+    with st.expander(
+        "ℹ️ Technical information"
+    ):
+
+        st.write(
+            f"🌧️ Rainfall: {rainfall:.1f} mm"
+        )
+
+        st.write(
+            f"💧 Soil moisture: "
+            f"{soil_moisture:.1f}%"
+        )
+
+        st.write(
+            f"📳 Vibration: {vibration:.1f}"
+        )
+
+        st.write(
+            f"⛰️ Slope: {slope:.1f}°"
+        )
+
+        st.write(
+            f"🤖 AI risk probability: "
+            f"{probability * 100:.1f}%"
+        )
+
+        st.write(
+            f"🕐 Checked at: "
+            f"{datetime.now().strftime('%H:%M:%S')}"
+        )
+
+# =========================================================
+# FIRST-TIME USER INSTRUCTIONS
+# =========================================================
+
+else:
+
+    st.info(
+        "👆 Select your location and language above, "
+        "then press the large button to check your area."
+    )
+
+# =========================================================
+# SIMPLE ARCHITECTURE
+# =========================================================
+
+st.divider()
+
+st.caption(
+    "🌦️ Environmental Data → 🤖 AI → 🚨 Warning → 🔊 Local Language Voice"
+)
+
+# =========================================================
+# PROTOTYPE DISCLAIMER
+# =========================================================
+
+with st.expander(
+    "⚠️ Prototype information"
+):
+
+    st.write(
+        "This prototype uses live weather information "
+        "for rainfall and soil moisture. Vibration and "
+        "slope are temporary demonstration inputs until "
+        "validated physical sensors are connected. "
+        "The AI model is trained on demonstration data "
+        "and must not be used as the sole basis for "
+        "real emergency decisions."
+    )
