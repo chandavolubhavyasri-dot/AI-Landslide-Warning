@@ -17,7 +17,7 @@ st.title("⚠️ AI Landslide Warning System")
 st.write("AI-based landslide risk prediction with multilingual voice warning.")
 
 # -----------------------------
-# Load trained ML model
+# Load trained ML model nh
 # -----------------------------
 model = joblib.load("landslide_model.joblib")
 
