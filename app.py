@@ -20,7 +20,7 @@ st.set_page_config(
             # SIMPLE USER INTERFACE
             # =========================================================
 
-            st.title("⚠️ AI LANDSLIDE WARNING")
+              st.title("⚠️ AI LANDSLIDE WARNING")
 
             st.write(
                 "Select your location and language. "
