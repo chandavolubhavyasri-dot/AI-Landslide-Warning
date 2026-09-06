@@ -12,17 +12,16 @@ from datetime import datetime
 
 st.set_page_config(
     page_title="AI Landslide Warning",
-        page_icon="⚠️",
-            layout="centered"
+    page_icon="⚠️",
+    layout="centered"
             )
 
             # =========================================================
             # SIMPLE USER INTERFACE
-            # =========================================================
+            # =======================================================         
+st.title("⚠️ AI LANDSLIDE WARNING")
 
-              st.title("⚠️ AI LANDSLIDE WARNING")
-
-            st.write(
+st.write(
                 "Select your location and language. "
                     "The system will automatically check the risk "
                         "and provide a voice warning."
